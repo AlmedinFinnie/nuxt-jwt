@@ -14,6 +14,8 @@ async function fetchProfileData() {
 }
 </script>
 <template>
-  <div @click="fetchProfileData">Fetch data</div>
+  <div @click="fetchProfileData" class="max-w-screen-xl mx-auto p-4">
+    Fetch data
+  </div>
 </template>
 <style scoped></style>

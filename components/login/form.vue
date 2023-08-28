@@ -24,6 +24,8 @@ const handleLogin = async () => {
       }
 
       data.value ? console.log("data", data) : "";
+
+      navigateTo("/dashboard");
     } catch (error) {
       console.log("error", error);
     }

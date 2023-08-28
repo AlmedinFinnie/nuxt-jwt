@@ -23,6 +23,6 @@
     "pinia": "^2.1.6"
   },
   "overrides": {
-    "vue": "latest"
+    "vue": "3.3.4"
   }
 }
