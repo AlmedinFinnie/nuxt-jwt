@@ -1,15 +1,15 @@
 import type { UseFetchOptions, useRouter } from "nuxt/app";
 
+interface QueuedRequest {
+  resolve: (value: any) => void;
+  reject: (reason: any) => void;
+  request: any;
+  options: any;
+}
+
 export function useApiFetch<T>(path: string, options: UseFetchOptions<T> = {}) {
   const router: any = useRouter();
-  interface ErrorResponse {
-    message?: string;
-  }
-
-  //   const token = localStorage.getItem("token");
-  // let headers: any = {};
-
-  // headers["Accept"] = "application/json" as string;
+  const failedRequestsQueue: QueuedRequest[] = [];
   let headers = ref({
     Accept: "application/json",
   });
@@ -17,109 +17,98 @@ export function useApiFetch<T>(path: string, options: UseFetchOptions<T> = {}) {
 
   if (process.client) {
     token = window.localStorage.getItem("access_token");
-    console.log("token iin useApi", token);
-
-    // headers["Authorization"] = "Bearer " + token;
-    headers.value["Authorization"] = "Bearer " + token;
+    console.log("token in useApi", token);
   }
-  const defaults: UseFetchOptions<T> = {
-    // set user token if connected
-    // headers: userAuth.value
-    //   ? { Authorization: `Bearer ${userAuth.value}` }
-    //   : {},
 
+  const defaults: UseFetchOptions<T> = {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   };
 
-  return useFetch("http://localhost:8000/api/" + path, {
-    watch: false,
-    ...options,
-    headers: {
-      ...headers.value,
-      ...options?.headers,
-    },
+  return new Promise(async (resolve, reject) => {
+    const fetchResult = await useFetch("http://localhost:8000/api/" + path, {
+      watch: false,
+      ...defaults,
+      ...options,
+      headers: {
+        ...headers.value,
+        ...options?.headers,
+        Authorization: `Bearer ${token}`,
+      },
 
-    onRequest({ request, options }) {
-      // Set the request headers
-      // options.headers = options.headers || {}
-      // options.headers.authorization = '...'
-      console.log("onRequest");
-    },
-    onRequestError({ request, options, error }) {
-      // Handle the request errors
-      console.log("onRequestError");
-    },
-    onResponse({ request, response, options }) {
-      // Process the response data
-      // localStorage.setItem('token', response._data.token)
-      console.log("onResponse");
-    },
-    async onResponseError({ request, response, options }) {
-      console.log("request", request);
-      console.log("response", response);
-      console.log("options", options);
+      onRequest({ request, options }) {
+        console.log("onRequest");
+      },
+      onRequestError({ request, options, error }) {
+        console.log("onRequestError");
+      },
+      onResponse({ request, response, options }) {
+        console.log("onResponse");
+      },
+      async onResponseError({ request, response, options }) {
+        const errorMessage = response?._data?.message;
 
-      console.log("request", request);
-      console.log("options header", options.headers);
-      console.log("options header A", options.headers?.keys);
-      console.log("options header A", options.headers?.keys["Authorization"]);
-      console.log("options header A", options.headers?.values["Authorization"]);
+        if (errorMessage === "token expired") {
+          console.log("error", errorMessage);
 
-      // Handle the response errors
-      console.group("data");
-      const errorMessage = response?._data?.message;
-      console.log("errorMessage", errorMessage);
-      if (errorMessage === "token expired") {
-        console.log("error", errorMessage);
+          failedRequestsQueue.push({ resolve, reject, request, options });
 
-        // Handle token expiration. For example:
-        // 1. Try to refresh the token
+          const { data, error } = await useFetch(
+            "http://localhost:8000/api/" + "auth/refresh",
+            {
+              method: "POST",
+              headers: {
+                ...headers.value,
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
 
-        const { data, error } = await useFetch(
-          "http://localhost:8000/api/" + "auth/refresh",
-          {
-            method: "POST",
-            headers: {
-              ...headers.value,
-            },
-          }
-        );
-        if (data.value) {
-          console.log("data.value", data.value?.access_token);
-          window.localStorage.setItem("access_token", data.value?.access_token);
-          console.log("Token refreshed and updated in localStorage");
+          if (data.value) {
+            console.log("data.value", data.value?.access_token);
+            window.localStorage.setItem(
+              "access_token",
+              data.value?.access_token
+            );
+            token = data.value?.access_token;
 
-          // headers["Authorization"] = "Bearer " + data.value?.access_token;
-          headers.value["Authorization"] = "Bearer " + data.value?.access_token;
+            while (failedRequestsQueue.length) {
+              const queuedReq = failedRequestsQueue.shift();
 
-          // update the new header
+              const retryResult = await useFetch(queuedReq.request, {
+                ...queuedReq.options,
+                headers: {
+                  ...queuedReq.options.headers,
+                  Authorization: `Bearer ${token}`,
+                },
+              });
 
-          // request.headers["Authorization"] =
-          //   "Bearer " + data.value?.access_token;
-        } else if (error.value) {
-          console.log("error", error.value.data.message);
-          if (error.value.data.message === "The token has been blacklisted") {
-            if (process.client) {
-              // if token is blacklisted then we remove the access token and then redirect to the login page
-              window.localStorage.removeItem("access_token");
-              router.push({ path: "/login" });
+              queuedReq.resolve(retryResult);
+            }
+          } else if (error.value) {
+            console.log("error after refresh", error.value.data.message);
+            if (
+              error.value.data.message === "The token has been blacklisted" ||
+              error.value.data.message ===
+                "Token has expired and can no longer be refreshed"
+            ) {
+              if (process.client) {
+                window.localStorage.removeItem("access_token");
+                router.push({ path: "/login" });
+              }
             }
           }
+        } else if (errorMessage === "Unauthorized") {
+          if (process.client) {
+            window.localStorage.removeItem("access_token");
+            router.push({ path: "/login" });
+          }
+          reject("Unauthorized");
+        } else {
+          reject("Some other error occurred");
         }
+      },
+    });
 
-        console.log("refresh token");
-      } else if (errorMessage === "Unauthorized") {
-        if (process.client) {
-          // if token is blacklisted then we remove the access token and then redirect to the login page
-          window.localStorage.removeItem("access_token");
-          // send to the /login page
-
-          router.push({ path: "/login" });
-        }
-      } else {
-        // Handle other types of errors
-        // throw new myBusinessError()
-      }
-    },
+    resolve(fetchResult);
   });
 }

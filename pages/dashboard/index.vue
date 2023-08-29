@@ -1,15 +1,23 @@
 <script setup>
 import { useAuthStore } from "~/stores/useAuthStore";
-
 const auth = useAuthStore();
 
-async function fetchProfileData() {
-  const { data, error } = await auth.getUser();
+definePageMeta({
+  middleware: ["auth-guard"],
+});
 
-  if (data.value) {
-    console.log("data", data.value);
-  } else {
-    console.log("error", error.value);
+async function fetchProfileData() {
+  if (process.client) {
+    const { data, error } = await auth.getUser();
+
+    if (data.value) {
+      console.log("data", data.value);
+    } else {
+      console.log("error", error.value);
+    }
+    // const req = await auth.getUser();
+
+    // console.log("req", req);
   }
 }
 </script>
