@@ -1,4 +1,16 @@
-<script setup></script>
+<script setup>
+import { useAuthStore } from "@/stores/useAuthStore";
+
+const auth = useAuthStore();
+
+let loggedIn = ref(false);
+
+if (auth.loggedIn) {
+  loggedIn.value = auth.loggedIn;
+}
+
+console.log("logged in: ", loggedIn.value);
+</script>
 <template>
   <nav class="bg-white border-gray-200 dark:bg-gray-900">
     <div
@@ -16,16 +28,25 @@
         >
       </a>
       <div class="flex items-center md:order-2">
-        <NuxtLink
-          to="/login"
-          class="text-gray-800 dark:text-white hover:bg-gray-50 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 py-2 md:px-5 md:py-2.5 mr-1 md:mr-2 dark:hover:bg-gray-700 focus:outline-none dark:focus:ring-gray-800"
-          >Login</NuxtLink
-        >
-        <NuxtLink
-          to="/register"
-          class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 md:px-5 md:py-2.5 mr-1 md:mr-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
-          >Register</NuxtLink
-        >
+        <div v-if="!loggedIn">
+          <NuxtLink
+            to="/login"
+            class="text-gray-800 dark:text-white hover:bg-gray-50 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 py-2 md:px-5 md:py-2.5 mr-1 md:mr-2 dark:hover:bg-gray-700 focus:outline-none dark:focus:ring-gray-800"
+            >Login</NuxtLink
+          >
+          <NuxtLink
+            to="/register"
+            class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 md:px-5 md:py-2.5 mr-1 md:mr-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
+            >Register</NuxtLink
+          >
+        </div>
+        <div v-else>
+          <NuxtLink
+            to="/dashboard"
+            class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 md:px-5 md:py-2.5 mr-1 md:mr-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
+            >Dashboard</NuxtLink
+          >
+        </div>
         <button
           data-collapse-toggle="mega-menu"
           type="button"

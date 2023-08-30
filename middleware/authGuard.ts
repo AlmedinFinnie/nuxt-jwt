@@ -6,7 +6,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   console.log("from", from);
   let loggedIn: boolean = false;
 
-  //   console.log(await auth.loggedIn);
+  console.log(await auth.loggedIn);
   loggedIn = auth.loggedIn;
   if (process.client) {
     let token: string | null = localStorage.getItem("access_token");
@@ -21,9 +21,9 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
         auth.loggedIn = true;
         auth.access_token = window.localStorage.getItem("access_token");
         loggedIn = true;
-        return navigateTo("/dashboard");
+        // return navigateTo("/dashboard");
       } else {
-        return navigateTo("/");
+        // return navigateTo("/");
       }
     }
   }
